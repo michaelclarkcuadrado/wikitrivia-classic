@@ -1,0 +1,35 @@
+@import "./variables.scss";
+
+.logoWrap {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  font-size: clamp(48px, 14vw, 96px);
+  min-height: 1.8em;
+  padding: 1.5rem 0;
+}
+
+.mark {
+  position: relative;
+  line-height: 1;
+}
+
+.main {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  font-size: 1em;
+  letter-spacing: -0.02em;
+  color: $text-light;
+  line-height: 1;
+}
+
+.tag {
+  font-family: "Kaushan Script", cursive;
+  font-size: 0.52em;
+  color: #c0392b;
+  position: absolute;
+  right: -0.56em;
+  bottom: -0.56em;
+  transform: rotate(-14deg);
+  white-space: nowrap;
+}

@@ -1,8 +1,8 @@
-# Wiki Trivia
+# Wikitrivia Classic
 
-This is the source code for the web app at https://wikitrivia.tomjwatson.com.
+A fan project keeping the original gameplay of Wikitrivia alive.
 
-The repository for the scraper can be found [here](https://github.com/tom-james-watson/wikitrivia-scraper).
+[Tom Watson's original Wikitrivia](https://github.com/tom-james-watson/wikitrivia) was updated to v2 in 2026 and made many changes. Wikitrivia Classic will stay faithful to the 2022 gameplay, with minimal site updates and a refreshed dataset.
 
 ## Usage
 
@@ -34,14 +34,36 @@ Then run said build with:
 npm start
 ```
 
+### Docker
+
+A `Dockerfile` is included that builds the static site and serves it with nginx:
+
+```bash
+docker build -t wikitrivia-classic .
+docker run --rm -p 8080:80 wikitrivia-classic
+```
+
+## Rebuilding the card dataset
+
+`public/items.json` is generated from a [Wikidata JSON dump](https://dumps.wikimedia.org/wikidatawiki/entities/) by `scripts/build-items.go`:
+
+```bash
+go run scripts/build-items.go
+```
+
+Plan for around 150 GB of free disk space for the dump. On a 32-thread server the cards are computed in about 10 minutes.
+
+Configuration is via environment variables (`WIKIDATA_DUMP_PATH`, `OUTPUT_PATH`, `SITELINKS_THRESHOLD`, `HUMAN_DOB_CUTOFF`, `SKIP_DOWNLOAD`, …). See the comment at the top of the script for details.
+
 ## FAQ
 
 ### Where does the data come from?
 
-The data is all sourced from [wikidata](https://www.wikidata.org).
+All card data is sourced from [Wikidata](https://www.wikidata.org) under the [CC0 license](https://creativecommons.org/publicdomain/zero/1.0/).
 
-### I was played a card that doesn't make sense - what gives?
+## License & credits
 
-There are some cards that unfortunately don't quite make sense or have bad data. These need to be removed from the game and, ideally, to have their underlying wikidata entry fixed.
+- Original Wikitrivia © 2022 Thomas James Watson, released under the MIT license.
+- Card data sourced from [Wikidata](https://www.wikidata.org) under the CC0 license.
 
-Please report any bad cards here: https://github.com/tom-james-watson/wikitrivia/discussions/2.
+Report site issues or reach out by contacting <wikitrivia@michaelcc.me>.

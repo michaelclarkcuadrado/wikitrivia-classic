@@ -1,0 +1,20 @@
+@import "./variables.scss";
+
+.info {
+  align-self: stretch;
+  padding: 16px 20px;
+  color: $text-light;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: center;
+
+  p {
+    max-width: 640px;
+    margin: 0 auto 8px;
+  }
+
+  a {
+    color: $text-light;
+    text-decoration: underline;
+  }
+}
