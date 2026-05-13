@@ -27,7 +27,6 @@ export default function Game() {
         .filter((item) => !item.label.includes(String(item.year)))
         .filter((item) => !item.description.includes(String(item.year)))
         .filter((item) => !/(?:th|st|nd)[ -]century/i.test(item.description))
-        // Filter cards which have bad data as submitted in https://github.com/tom-james-watson/wikitrivia/discussions/2
         .filter((item) => !(item.id in badCards));
       setItems(items);
     };
@@ -52,6 +51,17 @@ export default function Game() {
     })();
   }, [items]);
 
+  const setBoardState = React.useCallback<
+    React.Dispatch<React.SetStateAction<GameState>>
+  >((update) => {
+    setState((prev) => {
+      if (prev === null) {
+        return prev;
+      }
+      return typeof update === "function" ? update(prev) : update;
+    });
+  }, []);
+
   const [highscore, setHighscore] = React.useState<number>(
     Number(localStorage.getItem("highscore") ?? "0")
   );
@@ -75,7 +85,7 @@ export default function Game() {
     <Board
       highscore={highscore}
       state={state}
-      setState={setState}
+      setState={setBoardState}
       resetGame={resetGame}
       updateHighscore={updateHighscore}
     />

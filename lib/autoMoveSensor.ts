@@ -1,4 +1,4 @@
-import { FluidDragActions, SensorAPI } from "react-beautiful-dnd";
+import { FluidDragActions, SensorAPI } from "@hello-pangea/dnd";
 import * as tweenFunctions from "tween-functions";
 import { GameState } from "../types/game";
 
@@ -27,7 +27,7 @@ function moveStepByStep(
   });
 }
 
-export default async function useAutoMoveSensor(
+export default async function autoMoveSensor(
   state: GameState,
   api: SensorAPI
 ) {
@@ -46,10 +46,10 @@ export default async function useAutoMoveSensor(
   }
 
   const itemEl: HTMLElement | null = document.querySelector(
-    `[data-rbd-draggable-id='${state.played[state.badlyPlaced.index].id}']`
+    `[data-rfd-draggable-id='${state.played[state.badlyPlaced.index].id}']`
   );
   const destEl: HTMLElement | null = document.querySelector(
-    `[data-rbd-draggable-id='${
+    `[data-rfd-draggable-id='${
       state.played[state.badlyPlaced.index + state.badlyPlaced.delta].id
     }']`
   );

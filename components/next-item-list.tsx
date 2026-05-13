@@ -1,15 +1,16 @@
 import React from "react";
-import { Droppable } from "react-beautiful-dnd";
+import { Droppable } from "@hello-pangea/dnd";
 import { Item } from "../types/item";
 import ItemCard from "./item-card";
 import styles from "../styles/next-item-list.module.scss";
 
 interface NextItemListProps {
   next: Item | null;
+  isDraggable: boolean;
 }
 
 export default function NextItemList(props: NextItemListProps) {
-  const { next } = props;
+  const { next, isDraggable } = props;
 
   return (
     <div className={styles.container}>
@@ -22,7 +23,12 @@ export default function NextItemList(props: NextItemListProps) {
               className={styles.list}
             >
               {next && (
-                <ItemCard draggable index={0} item={next} key={next.id} />
+                <ItemCard
+                  draggable={isDraggable}
+                  index={0}
+                  item={next}
+                  key={next.id}
+                />
               )}
               {provided.placeholder}
             </div>
