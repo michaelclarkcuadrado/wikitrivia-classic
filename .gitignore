@@ -38,3 +38,6 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# generated from public/items.json by scripts/gzip-items.js
+/public/items.json.gz

@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { GameState } from "../types/game";
 import { Item } from "../types/item";
 import createState from "../lib/create-state";
@@ -16,13 +15,16 @@ export default function Game() {
 
   React.useEffect(() => {
     const fetchGameData = async () => {
-      const res = await axios.get<string>("/items.json");
-      const items: Item[] = res.data
+      const res = await fetch("/items.json.gz");
+      if (!res.ok || !res.body) {
+        throw new Error(`Failed to fetch items.json.gz: ${res.status}`);
+      }
+      const stream = res.body.pipeThrough(new DecompressionStream("gzip"));
+      const text = await new Response(stream).text();
+      const items: Item[] = text
         .trim()
         .split("\n")
-        .map((line) => {
-          return JSON.parse(line);
-        })
+        .map((line) => JSON.parse(line))
         // Filter out questions which give away their answers
         .filter((item) => !item.label.includes(String(item.year)))
         .filter((item) => !item.description.includes(String(item.year)))

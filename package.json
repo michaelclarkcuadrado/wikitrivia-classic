@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "prebuild": "node scripts/gzip-items.js",
+    "postbuild": "rm -f out/items.json",
     "dev": "next dev",
+    "predev": "node scripts/gzip-items.js",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,css,scss,json,yml}\"",
     "lint": "eslint --max-warnings=0 --cache --ext .js,.ts,.tsx .",
     "lint-fix": "eslint --fix --cache --ext .js,.ts,.tsx .",
@@ -12,14 +15,12 @@
   },
   "dependencies": {
     "@hello-pangea/dnd": "^16.6.0",
-    "axios": "^1.6.7",
     "classnames": "^2.3.1",
     "next": "^16.2.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-loader-spinner": "^4.0.0",
     "react-spring": "^9.7.3",
-    "seamless-scroll-polyfill": "^1.2.3",
     "tween-functions": "^1.2.0"
   },
   "devDependencies": {
