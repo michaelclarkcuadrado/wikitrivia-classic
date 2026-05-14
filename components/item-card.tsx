@@ -42,6 +42,7 @@ export default function ItemCard(props: Props) {
   const { draggable, flippedId, index, item, setFlippedId } = props;
 
   const flipped = item.id === flippedId;
+  const pending = !draggable && !("played" in item);
 
   const cardSpring = useSpring({
     opacity: flipped ? 1 : 0,
@@ -72,6 +73,7 @@ export default function ItemCard(props: Props) {
               [styles.played]: "played" in item,
               [styles.flipped]: flipped,
               [styles.dragging]: snapshot.isDragging,
+              [styles.pending]: pending,
             })}
             ref={provided.innerRef}
             {...provided.draggableProps}

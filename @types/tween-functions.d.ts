@@ -1,5 +1,5 @@
 declare module "tween-functions" {
-  export const easeOutCirc: (
+  export const linear: (
     currentTime: number,
     beginValue: number,
     endValue: number,

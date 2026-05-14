@@ -98,14 +98,14 @@ export default async function autoMoveSensor(
   // current state to the desired state.
   const transformPoints = [];
   const scrollPoints = [];
-  const numberOfPoints = 30 + 5 * Math.abs(state.badlyPlaced.delta);
+  const numberOfPoints = 8 + Math.abs(state.badlyPlaced.delta);
 
   for (let i = 0; i < numberOfPoints; i++) {
     transformPoints.push(
-      tweenFunctions.easeOutCirc(i, 0, transformDistance, numberOfPoints)
+      tweenFunctions.linear(i, 0, transformDistance, numberOfPoints)
     );
     scrollPoints.push(
-      tweenFunctions.easeOutCirc(
+      tweenFunctions.linear(
         i,
         bottomEl.scrollLeft,
         bottomEl.scrollLeft + scrollDistance,

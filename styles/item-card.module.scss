@@ -47,6 +47,11 @@
     }
   }
 
+  &.pending {
+    pointer-events: none;
+    user-select: none;
+  }
+
   &.played {
     .front,
     .back {
