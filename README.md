@@ -6,12 +6,6 @@ A fan project keeping the original gameplay of Wikitrivia alive.
 
 ## Usage
 
-### Prerequisites
-
-```bash
-npm install
-```
-
 ### Development
 
 ```bash
@@ -28,12 +22,6 @@ To build a static version of the website to the `out` folder, run:
 npm run build
 ```
 
-Then run said build with:
-
-```bash
-npm start
-```
-
 ### Docker
 
 A `Dockerfile` is included that builds the static site and serves it with nginx:
@@ -43,17 +31,15 @@ docker build -t wikitrivia-classic .
 docker run --rm -p 8080:80 wikitrivia-classic
 ```
 
-## Rebuilding the card dataset
+## Updating the card dataset
 
-`public/items.json` is generated from a [Wikidata JSON dump](https://dumps.wikimedia.org/wikidatawiki/entities/) by `scripts/build-items.go`:
+`public/items.json.gz` is generated from a [Wikidata JSON dump](https://dumps.wikimedia.org/wikidatawiki/entities/) by `scripts/build-items.go`:
 
 ```bash
 go run scripts/build-items.go
 ```
 
 Plan for around 150 GB of free disk space for the dump. On a 32-thread server the cards are computed in about 10 minutes.
-
-Configuration is via environment variables (`WIKIDATA_DUMP_PATH`, `OUTPUT_PATH`, `SITELINKS_THRESHOLD`, `HUMAN_DOB_CUTOFF`, `SKIP_DOWNLOAD`, …). See the comment at the top of the script for details.
 
 ## FAQ
 

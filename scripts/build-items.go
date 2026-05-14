@@ -1,10 +1,14 @@
-// Rebuild public/items.json from the latest Wikidata JSON dump.
+// Rebuild public/items.json.gz from the latest Wikidata JSON dump.
+//
+// The output is a gzipped JSON object using a columnar/dictionary-encoded
+// layout (see emitPacked) so the client can fetch a much smaller file and
+// expand it via DecompressionStream + a tiny mapping pass.
 //
 // Usage: go run scripts/build-items.go
 //
 // Env:
 //   WIKIDATA_DUMP_PATH   where to keep the dump (default: .cache/wikidata-latest-all.json.bz2)
-//   OUTPUT_PATH          output file (default: public/items.json)
+//   OUTPUT_PATH          output file (default: public/items.json.gz)
 //   DECOMPRESSOR         lbzip2 (default), pbzip2, or bzip2
 //   SITELINKS_THRESHOLD  popularity gate (default: 30)
 //   HUMAN_DOB_CUTOFF     humans born after this year are placed by death year (default: 1849)
@@ -23,6 +27,7 @@ package main
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,7 +49,7 @@ const dumpURL = "https://dumps.wikimedia.org/wikidatawiki/entities/latest-all.js
 
 var (
 	dumpPath           = envOr("WIKIDATA_DUMP_PATH", ".cache/wikidata-latest-all.json.bz2")
-	outputPath         = envOr("OUTPUT_PATH", "public/items.json")
+	outputPath         = envOr("OUTPUT_PATH", "public/items.json.gz")
 	decompressor       = envOr("DECOMPRESSOR", "lbzip2")
 	sitelinksThreshold = envInt("SITELINKS_THRESHOLD", 30)
 	// Items lacking a P18 image must clear a higher sitelinks bar (proxy
@@ -265,17 +270,170 @@ func hasImageOptionalClass(labels []string) bool {
 	return false
 }
 
-// Output struct order matches V1's NDJSON field order exactly.
-type outputItem struct {
-	DatePropID     string    `json:"date_prop_id"`
-	Description    string    `json:"description"`
-	ID             string    `json:"id"`
-	Image          string    `json:"image"`
-	InstanceOf     []string  `json:"instance_of"`
-	Label          string    `json:"label"`
-	Occupations    *[]string `json:"occupations"` // nil → null, &[] → []
-	WikipediaTitle string    `json:"wikipedia_title"`
-	Year           int       `json:"year"`
+// Curated QID blocklist applied at emit time. These survive the dump-time
+// class/keyword filters but make poor cards (giveaway questions, NSFW,
+// content that conflicts with the game's tone).
+var badCards = map[string]bool{
+	"Q745019":   true, // Colt's Manufacturing Company
+	"Q697675":   true, // Gigabyte Technology
+	"Q157064":   true, // Puma (brand)
+	"Q179900":   true, // David (Michelangelo)
+	"Q218567":   true, // Law & Order SVU
+	"Q486682":   true, // Crips
+	"Q12871":    true, // Simon the Zealot
+	"Q5505":     true, // Lake Victoria
+	"Q58784":    true, // Das Kapital
+	"Q345":      true, // Virgin Mary
+	"Q184742":   true, // Metamorphoses
+	"Q128267":   true, // Joseph
+	"Q60220":    true, // Aeneid
+	"Q25716":    true, // 1st millennium BC
+	"Q134862":   true, // Champagne
+	"Q207193":   true, // Skellig Michael
+	"Q38526":    true, // 1,000,000
+	"Q193159":   true, // Russian Armed Forces
+	"Q43343":    true, // Folk music
+	"Q10282403": true, // Surgical mask
+	"Q46197":    true, // Ascension
+	"Q132851":   true, // Admiral
+	"Q55629":    true, // Epsom Derby
+	"Q828435":   true, // Spanish conquest of the Aztec Empire
+	"Q460584":   true, // Scala
+	"Q244157":   true, // Igbo people
+	"Q1990219":  true, // French colonization of the Americas
+	"Q321303":   true, // The Garden of Earthly Delights
+	"Q9730":     true, // Classical music
+	"Q221062":   true, // DuPont
+	"Q39427":    true, // Surrealism
+	"Q219995":   true, // Guanches
+	"Q833163":   true, // Knight Bachelor
+	"Q42233":    true, // Sickle
+	"Q80290":    true, // Forbidden City
+	"Q39950":    true, // Vedas
+	"Q468836":   true, // Raedwald of East Anglia
+	"Q73801":    true, // Xbox Game Studios
+	"Q81018":    true, // Judas Iscariot
+	"Q528187":   true, // Pringles
+	"Q187846":   true, // Russian Alphabet
+	"Q99309":    true, // Pantheon, Rome
+	"Q55":       true, // Netherlands
+	"Q80344":    true, // Mount Olympus
+	"Q161718":   true, // United Nations Development Programme
+	"Q3293295":  true, // Turkish Naval Forces
+	"Q1059358":  true, // Rubáiyát of Omar Khayyám
+	"Q82996":    true, // Runes
+	"Q106187":   true, // Giant's Causeway
+	"Q213804":   true, // Lindisfarne
+	"Q229702":   true, // Ham (son of Noah)
+	"Q830183":   true, // Eve
+	"Q44996":    true, // The Oxford English Dictionary
+	"Q212746":   true, // Anglo-Saxon Chronicle
+	"Q41726":    true, // Freemasonry
+	"Q142":      true, // France
+	"Q115":      true, // Ethiopia
+	"Q12263":    true, // Mahjong
+	"Q213633":   true, // Deborah
+	"Q7734":     true, // Joshua
+	"Q202466":   true, // Blond
+	"Q94787":    true, // Sunflower Oil
+	"Q174640":   true, // V-2 Rocket
+	"Q1616457":  true, // Mycroft Holmes
+	"Q302":      true, // Jesus
+	"Q84422877": true, // Samaritan woman
+	"Q917374":   true, // Norwegian Armed Forces
+	"Q718":      true, // Chess
+	"Q183":      true, // Germany
+	"Q38":       true, // Italy
+	"Q1649955":  true, // Scarlett O'Hara
+	"Q1768161":  true, // Abraham in Islam
+	"Q11768":    true, // Ancient Egypt
+	"Q304673":   true, // Platoon
+	"Q43982":    true, // Bartholomew the Apostle
+	"Q36":       true, // Poland
+	"Q47128":    true, // Christmas Tree
+	"Q242382":   true, // Thusnelda
+	"Q1069785":  true, // Hong Kong Flu
+	"Q183562":   true, // Umayyad Mosque
+	"Q82613":    true, // Krakatoa
+	"Q459188":   true, // Kingdom of the Isles
+	"Q465283":   true, // Russian Navy
+	"Q461606":   true, // Arsène Lupin
+	"Q304690":   true, // Li Ching-Yuen
+	"Q2001966":  true, // Company rule in India
+	"Q651532":   true, // The Three Little Pigs
+	"Q184661":   true, // Ogham
+	"Q31057":    true, // Norfolk Island
+	"Q1246283":  true, // Kumbhalgarh
+	"Q735349":   true, // Russian conquest of Siberia
+	"Q2223341":  true, // Elizabeth Bennet
+	"Q40185":    true, // Divine Comedy
+	"Q2723024":  true, // Enron scandal
+	"Q133600":   true, // Banksy
+	"Q14112":    true, // Corsica
+	"Q1892745":  true, // Salvator Mundi (Leonardo)
+	"Q994776":   true, // Brutalist architecture
+	"Q182865":   true, // War in Afghanistan
+	"Q936394":   true, // Pornhub
+	"Q466683":   true, // Chyna
+	"Q824540":   true, // AVN Awards
+	"Q19559884": true, // August Ames
+	"Q2709":     true, // Sasha Grey
+	"Q260794":   true, // Sunny Leone
+	"Q973475":   true, // Dustin Diamond
+	"Q3700050":  true, // XVideos
+	"Q18735049": true, // Mia Khalifa
+	"Q233118":   true, // Traci Lords
+	"Q3916703":  true, // Riley Reid
+	"Q18749736": true, // Johnny Sins
+	"Q65115154": true, // Belle Delphine
+	"Q739550":   true, // M&M's
+	"Q1431121":  true, // St Michael's Mount
+	"Q174097":   true, // Hogwarts
+	"Q8690":     true, // Cultural Revolution
+	"Q149086":   true, // Homicide
+}
+
+var centuryRE = regexp.MustCompile(`(?i)(?:th|st|nd)[ -]century`)
+
+// shouldKeep drops cards that give away their answer or are on the curated
+// blocklist. Mirrors the filters that used to live in components/game.tsx —
+// applying them at build time saves bandwidth and removes runtime work.
+func shouldKeep(c *candidate) bool {
+	ys := strconv.Itoa(c.Year)
+	if strings.Contains(c.Label, ys) {
+		return false
+	}
+	if strings.Contains(c.Description, ys) {
+		return false
+	}
+	if centuryRE.MatchString(c.Description) {
+		return false
+	}
+	if badCards[c.ID] {
+		return false
+	}
+	return true
+}
+
+// interner assigns a stable integer index to each unique string it sees,
+// in first-seen order. Used to dictionary-encode the low-cardinality
+// fields (date_prop_id, instance_of, occupations).
+type interner struct {
+	m    map[string]int
+	list []string
+}
+
+func (it *interner) index(s string) int {
+	if it.m == nil {
+		it.m = make(map[string]int)
+	}
+	if i, ok := it.m[s]; ok {
+		return i
+	}
+	i := len(it.list)
+	it.m[s] = i
+	it.list = append(it.list, s)
+	return i
 }
 
 var timeRE = regexp.MustCompile(`^([+-])0*(\d+)`)
@@ -635,47 +793,121 @@ func resolveLabels(qids []string, shards []map[string]string) []string {
 	return out
 }
 
-func emit(candidates []*candidate) (int, error) {
+// emitPacked writes the gzipped, columnar/dictionary-encoded wire format.
+//
+// Layout:
+//
+//	{
+//	  "v": 1,
+//	  "fields": ["id","label","year","description","image",
+//	             "wikipedia_title","date_prop_id","instance_of","occupations"],
+//	  "dicts":  { "date_prop_id":[...], "instance_of":[...], "occupations":[...] },
+//	  "rows":   [ [idInt, label, year, description, image,
+//	               wikiTitle, dpIdx, instIdxs, occIdxs|null], ... ]
+//	}
+//
+// Compactness tricks:
+//   - id stored as integer ("Q" prefix re-added on the client)
+//   - wikipedia_title stored as "" when it equals label (the common case)
+//   - low-cardinality string fields replaced by indices into per-field dicts
+//   - rows sorted by numeric QID for stable, diff-friendly output
+func emitPacked(cands []*candidate) (int, error) {
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return 0, err
 	}
+
+	sort.Slice(cands, func(i, j int) bool {
+		ai, _ := strconv.Atoi(strings.TrimPrefix(cands[i].ID, "Q"))
+		aj, _ := strconv.Atoi(strings.TrimPrefix(cands[j].ID, "Q"))
+		return ai < aj
+	})
+
+	dpID := &interner{}
+	inst := &interner{}
+	occ := &interner{}
+
+	rows := make([][]interface{}, 0, len(cands))
+	dropped := 0
+	for _, c := range cands {
+		if !shouldKeep(c) {
+			dropped++
+			continue
+		}
+		idInt, err := strconv.Atoi(strings.TrimPrefix(c.ID, "Q"))
+		if err != nil {
+			return 0, fmt.Errorf("bad QID %q: %w", c.ID, err)
+		}
+		wikiTitle := c.EnwikiTitle
+		if wikiTitle == c.Label {
+			wikiTitle = ""
+		}
+		instIdxs := make([]int, len(c.InstanceOf))
+		for j, s := range c.InstanceOf {
+			instIdxs[j] = inst.index(s)
+		}
+		var occVal interface{}
+		if c.Occupations == nil {
+			occVal = nil
+		} else {
+			occIdxs := make([]int, len(*c.Occupations))
+			for j, s := range *c.Occupations {
+				occIdxs[j] = occ.index(s)
+			}
+			occVal = occIdxs
+		}
+		rows = append(rows, []interface{}{
+			idInt,
+			c.Label,
+			c.Year,
+			c.Description,
+			c.Image,
+			wikiTitle,
+			dpID.index(c.PropID),
+			instIdxs,
+			occVal,
+		})
+	}
+
+	packed := map[string]interface{}{
+		"v": 1,
+		"fields": []string{
+			"id", "label", "year", "description", "image",
+			"wikipedia_title", "date_prop_id", "instance_of", "occupations",
+		},
+		"dicts": map[string]interface{}{
+			"date_prop_id": dpID.list,
+			"instance_of":  inst.list,
+			"occupations":  occ.list,
+		},
+		"rows": rows,
+	}
+
 	f, err := os.Create(outputPath)
 	if err != nil {
 		return 0, err
 	}
 	defer f.Close()
-	w := bufio.NewWriterSize(f, 1<<20)
-	defer w.Flush()
 
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-
-	// Sort by numeric QID for stable output across monthly rebuilds.
-	sort.Slice(candidates, func(i, j int) bool {
-		ai, _ := strconv.Atoi(strings.TrimPrefix(candidates[i].ID, "Q"))
-		aj, _ := strconv.Atoi(strings.TrimPrefix(candidates[j].ID, "Q"))
-		return ai < aj
-	})
-
-	written := 0
-	for _, c := range candidates {
-		item := outputItem{
-			DatePropID:     c.PropID,
-			Description:    c.Description,
-			ID:             c.ID,
-			Image:          c.Image,
-			InstanceOf:     c.InstanceOf,
-			Label:          c.Label,
-			Occupations:    c.Occupations,
-			WikipediaTitle: c.EnwikiTitle,
-			Year:           c.Year,
-		}
-		if err := enc.Encode(item); err != nil {
-			return written, err
-		}
-		written++
+	gz, err := gzip.NewWriterLevel(f, gzip.BestCompression)
+	if err != nil {
+		return 0, err
 	}
-	return written, nil
+	defer gz.Close()
+
+	enc := json.NewEncoder(gz)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(packed); err != nil {
+		return 0, err
+	}
+
+	fmt.Fprintf(os.Stderr,
+		"[build-items] kept %d, dropped %d (badCards/year-in-label-or-desc/century)\n",
+		len(rows), dropped)
+	fmt.Fprintf(os.Stderr,
+		"[build-items] dict sizes: date_prop_id=%d instance_of=%d occupations=%d\n",
+		len(dpID.list), len(inst.list), len(occ.list))
+
+	return len(rows), nil
 }
 
 func downloadDump() error {
@@ -690,6 +922,8 @@ func downloadDump() error {
 }
 
 func main() {
+	t0 := time.Now()
+
 	if !skipDownload {
 		if _, err := os.Stat(dumpPath); errors.Is(err, os.ErrNotExist) {
 			if err := downloadDump(); err != nil {
@@ -704,8 +938,6 @@ func main() {
 	}
 
 	fmt.Fprintf(os.Stderr, "[build-items] %d workers, decompressor=%s\n", numWorkers, decompressor)
-
-	t0 := time.Now()
 	fmt.Fprintf(os.Stderr, "[build-items] scanning %s\n", dumpPath)
 	candidates, shards, err := passAll()
 	if err != nil {
@@ -724,7 +956,7 @@ func main() {
 	fmt.Fprintf(os.Stderr, "[build-items] geographic blocklist: kept %d / %d candidates\n",
 		len(candidates), before)
 
-	written, err := emit(candidates)
+	written, err := emitPacked(candidates)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "[build-items] emit failed:", err)
 		os.Exit(1)

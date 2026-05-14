@@ -5,7 +5,45 @@ import createState from "../lib/create-state";
 import Board from "./board";
 import Loading from "./loading";
 import Instructions from "./instructions";
-import badCards from "../lib/bad-cards";
+
+type PackedItems = {
+  v: number;
+  dicts: {
+    date_prop_id: string[];
+    instance_of: string[];
+    occupations: string[];
+  };
+  rows: Array<
+    [
+      number, // id (Q-prefix stripped)
+      string, // label
+      number, // year
+      string, // description
+      string, // image
+      string, // wikipedia_title ("" when same as label)
+      number, // date_prop_id dict index
+      number[], // instance_of dict indices
+      number[] | null // occupations dict indices, null for non-humans
+    ]
+  >;
+};
+
+function decodeItems(packed: PackedItems): Item[] {
+  const dp = packed.dicts.date_prop_id;
+  const io = packed.dicts.instance_of;
+  const oc = packed.dicts.occupations;
+  return packed.rows.map((r) => ({
+    id: "Q" + r[0],
+    label: r[1],
+    year: r[2],
+    description: r[3],
+    image: r[4],
+    wikipedia_title: r[5] === "" ? r[1] : r[5],
+    date_prop_id: dp[r[6]],
+    instance_of: r[7].map((i) => io[i]),
+    occupations: r[8] === null ? null : r[8].map((i) => oc[i]),
+  }));
+}
 
 export default function Game() {
   const [state, setState] = useState<GameState | null>(null);
@@ -21,16 +59,7 @@ export default function Game() {
       }
       const stream = res.body.pipeThrough(new DecompressionStream("gzip"));
       const text = await new Response(stream).text();
-      const items: Item[] = text
-        .trim()
-        .split("\n")
-        .map((line) => JSON.parse(line))
-        // Filter out questions which give away their answers
-        .filter((item) => !item.label.includes(String(item.year)))
-        .filter((item) => !item.description.includes(String(item.year)))
-        .filter((item) => !/(?:th|st|nd)[ -]century/i.test(item.description))
-        .filter((item) => !(item.id in badCards));
-      setItems(items);
+      setItems(decodeItems(JSON.parse(text) as PackedItems));
     };
 
     fetchGameData();
