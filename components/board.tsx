@@ -1,7 +1,14 @@
 import React from "react";
-import { DragDropContext, DropResult, SensorAPI } from "@hello-pangea/dnd";
+import {
+  DragDropContext,
+  DropResult,
+  SensorAPI,
+  useKeyboardSensor,
+  useMouseSensor,
+} from "@hello-pangea/dnd";
 import { GameState } from "../types/game";
 import autoMoveSensor from "../lib/autoMoveSensor";
+import useTouchSensor from "../lib/touchSensor";
 import { checkCorrect, getRandomItem, preloadImage } from "../lib/items";
 import NextItemList from "./next-item-list";
 import PlayedItemList from "./played-item-list";
@@ -26,7 +33,12 @@ export default function Board(props: Props) {
   stateRef.current = state;
 
   const sensors = React.useMemo(
-    () => [(api: SensorAPI) => autoMoveSensor(stateRef.current, api)],
+    () => [
+      useMouseSensor,
+      useKeyboardSensor,
+      useTouchSensor,
+      (api: SensorAPI) => autoMoveSensor(stateRef.current, api),
+    ],
     []
   );
 
@@ -148,6 +160,7 @@ export default function Board(props: Props) {
       onDragEnd={onDragEnd}
       onDragStart={onDragStart}
       sensors={sensors}
+      enableDefaultSensors={false}
     >
       <div className={styles.wrapper}>
         <div className={styles.top}>

@@ -3,7 +3,7 @@ import classNames from "classnames";
 import { useSpring, animated } from "react-spring";
 import { Draggable } from "@hello-pangea/dnd";
 import { Item, PlayedItem } from "../types/item";
-import { createWikimediaImage } from "../lib/image";
+import { createWikimediaImage, fallbackGradient } from "../lib/image";
 import styles from "../styles/item-card.module.scss";
 
 type Props = {
@@ -49,6 +49,20 @@ export default function ItemCard(props: Props) {
     transform: `perspective(600px) rotateY(${flipped ? 180 : 0}deg)`,
     config: { mass: 5, tension: 750, friction: 100 },
   });
+
+  const imageUrl = createWikimediaImage(item.image);
+  const [imageFailed, setImageFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    setImageFailed(false);
+    if (!item.image) {
+      setImageFailed(true);
+      return;
+    }
+    const img = new window.Image();
+    img.onerror = () => setImageFailed(true);
+    img.src = imageUrl;
+  }, [imageUrl, item.image]);
 
   const type = React.useMemo(() => {
     const safeDescription = item.description.replace(/ \(.+\)/g, "");
@@ -102,7 +116,9 @@ export default function ItemCard(props: Props) {
               <div
                 className={styles.image}
                 style={{
-                  backgroundImage: `url("${createWikimediaImage(item.image)}")`,
+                  backgroundImage: imageFailed
+                    ? fallbackGradient(item.label)
+                    : `url("${imageUrl}")`,
                 }}
               ></div>
               <animated.div

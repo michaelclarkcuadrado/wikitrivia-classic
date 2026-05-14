@@ -30,6 +30,17 @@
   position: absolute;
   right: -0.56em;
   bottom: -0.56em;
-  transform: rotate(-14deg);
+  transform-origin: center;
   white-space: nowrap;
+  animation: tag-breathe 1.5s ease-in-out infinite;
+}
+
+@keyframes tag-breathe {
+  0%,
+  100% {
+    transform: rotate(-14deg) scale(1);
+  }
+  50% {
+    transform: rotate(-14deg) scale(1.12);
+  }
 }
