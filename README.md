@@ -1,5 +1,7 @@
 # Wikitrivia Classic
 
+## ▶ [Play Wikitrivia Classic](https://wikitrivia.michaelcc.me)
+
 A fan project keeping the original gameplay of Wikitrivia alive.
 
 [Tom Watson's original Wikitrivia](https://github.com/tom-james-watson/wikitrivia) was updated to v2 in 2026 and made many changes. Wikitrivia Classic will stay faithful to the 2022 gameplay, with minimal site updates and a refreshed dataset.
