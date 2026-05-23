@@ -181,7 +181,7 @@ var excludedClassKeywords = []string{
 	"census-designated", "unincorporated",
 
 	// Administrative subdivisions.
-	"county", "parish",
+	"county", "parish", "canton",
 	"arrondissement", "subprefecture", "subdistrict",
 	"district", "prefecture", "province",
 	"department of", // French départements (avoid catching "department store")
@@ -198,7 +198,7 @@ var excludedClassKeywords = []string{
 	// Astronomical catalog entries make poor trivia. Exoplanets and comets
 	// are intentionally not on this list — they're kept.
 	"galaxy", "asteroid",
-	"nebula",
+	"nebula", "constellation",
 	"open cluster", "globular cluster",
 	"infrared source", "radio source", "x-ray source",
 	"moon of", "irregular moon", // moon of Jupiter/Saturn/...
@@ -219,6 +219,12 @@ var excludedClassKeywords = []string{
 
 	// Wikipedia/Wikimedia meta.
 	"wikipedia",
+
+	// Internet infrastructure: TLDs (.com, .org, country-code domains, ...).
+	// Bot-maintained registry entries with no meaningful "when" date — poor
+	// trivia. The substring catches every TLD class variant
+	// (country code / generic / sponsored / internationalized / ...).
+	"top-level domain",
 
 	// Scientific journal catalog.
 	"open-access", // open-access publisher
@@ -273,125 +279,7 @@ func hasImageOptionalClass(labels []string) bool {
 // Curated QID blocklist applied at emit time. These survive the dump-time
 // class/keyword filters but make poor cards (giveaway questions, NSFW,
 // content that conflicts with the game's tone).
-var badCards = map[string]bool{
-	"Q745019":   true, // Colt's Manufacturing Company
-	"Q697675":   true, // Gigabyte Technology
-	"Q157064":   true, // Puma (brand)
-	"Q179900":   true, // David (Michelangelo)
-	"Q218567":   true, // Law & Order SVU
-	"Q486682":   true, // Crips
-	"Q12871":    true, // Simon the Zealot
-	"Q5505":     true, // Lake Victoria
-	"Q58784":    true, // Das Kapital
-	"Q345":      true, // Virgin Mary
-	"Q184742":   true, // Metamorphoses
-	"Q128267":   true, // Joseph
-	"Q60220":    true, // Aeneid
-	"Q25716":    true, // 1st millennium BC
-	"Q134862":   true, // Champagne
-	"Q207193":   true, // Skellig Michael
-	"Q38526":    true, // 1,000,000
-	"Q193159":   true, // Russian Armed Forces
-	"Q43343":    true, // Folk music
-	"Q10282403": true, // Surgical mask
-	"Q46197":    true, // Ascension
-	"Q132851":   true, // Admiral
-	"Q55629":    true, // Epsom Derby
-	"Q828435":   true, // Spanish conquest of the Aztec Empire
-	"Q460584":   true, // Scala
-	"Q244157":   true, // Igbo people
-	"Q1990219":  true, // French colonization of the Americas
-	"Q321303":   true, // The Garden of Earthly Delights
-	"Q9730":     true, // Classical music
-	"Q221062":   true, // DuPont
-	"Q39427":    true, // Surrealism
-	"Q219995":   true, // Guanches
-	"Q833163":   true, // Knight Bachelor
-	"Q42233":    true, // Sickle
-	"Q80290":    true, // Forbidden City
-	"Q39950":    true, // Vedas
-	"Q468836":   true, // Raedwald of East Anglia
-	"Q73801":    true, // Xbox Game Studios
-	"Q81018":    true, // Judas Iscariot
-	"Q528187":   true, // Pringles
-	"Q187846":   true, // Russian Alphabet
-	"Q99309":    true, // Pantheon, Rome
-	"Q55":       true, // Netherlands
-	"Q80344":    true, // Mount Olympus
-	"Q161718":   true, // United Nations Development Programme
-	"Q3293295":  true, // Turkish Naval Forces
-	"Q1059358":  true, // Rubáiyát of Omar Khayyám
-	"Q82996":    true, // Runes
-	"Q106187":   true, // Giant's Causeway
-	"Q213804":   true, // Lindisfarne
-	"Q229702":   true, // Ham (son of Noah)
-	"Q830183":   true, // Eve
-	"Q44996":    true, // The Oxford English Dictionary
-	"Q212746":   true, // Anglo-Saxon Chronicle
-	"Q41726":    true, // Freemasonry
-	"Q142":      true, // France
-	"Q115":      true, // Ethiopia
-	"Q12263":    true, // Mahjong
-	"Q213633":   true, // Deborah
-	"Q7734":     true, // Joshua
-	"Q202466":   true, // Blond
-	"Q94787":    true, // Sunflower Oil
-	"Q174640":   true, // V-2 Rocket
-	"Q1616457":  true, // Mycroft Holmes
-	"Q302":      true, // Jesus
-	"Q84422877": true, // Samaritan woman
-	"Q917374":   true, // Norwegian Armed Forces
-	"Q718":      true, // Chess
-	"Q183":      true, // Germany
-	"Q38":       true, // Italy
-	"Q1649955":  true, // Scarlett O'Hara
-	"Q1768161":  true, // Abraham in Islam
-	"Q11768":    true, // Ancient Egypt
-	"Q304673":   true, // Platoon
-	"Q43982":    true, // Bartholomew the Apostle
-	"Q36":       true, // Poland
-	"Q47128":    true, // Christmas Tree
-	"Q242382":   true, // Thusnelda
-	"Q1069785":  true, // Hong Kong Flu
-	"Q183562":   true, // Umayyad Mosque
-	"Q82613":    true, // Krakatoa
-	"Q459188":   true, // Kingdom of the Isles
-	"Q465283":   true, // Russian Navy
-	"Q461606":   true, // Arsène Lupin
-	"Q304690":   true, // Li Ching-Yuen
-	"Q2001966":  true, // Company rule in India
-	"Q651532":   true, // The Three Little Pigs
-	"Q184661":   true, // Ogham
-	"Q31057":    true, // Norfolk Island
-	"Q1246283":  true, // Kumbhalgarh
-	"Q735349":   true, // Russian conquest of Siberia
-	"Q2223341":  true, // Elizabeth Bennet
-	"Q40185":    true, // Divine Comedy
-	"Q2723024":  true, // Enron scandal
-	"Q133600":   true, // Banksy
-	"Q14112":    true, // Corsica
-	"Q1892745":  true, // Salvator Mundi (Leonardo)
-	"Q994776":   true, // Brutalist architecture
-	"Q182865":   true, // War in Afghanistan
-	"Q936394":   true, // Pornhub
-	"Q466683":   true, // Chyna
-	"Q824540":   true, // AVN Awards
-	"Q19559884": true, // August Ames
-	"Q2709":     true, // Sasha Grey
-	"Q260794":   true, // Sunny Leone
-	"Q973475":   true, // Dustin Diamond
-	"Q3700050":  true, // XVideos
-	"Q18735049": true, // Mia Khalifa
-	"Q233118":   true, // Traci Lords
-	"Q3916703":  true, // Riley Reid
-	"Q18749736": true, // Johnny Sins
-	"Q65115154": true, // Belle Delphine
-	"Q739550":   true, // M&M's
-	"Q1431121":  true, // St Michael's Mount
-	"Q174097":   true, // Hogwarts
-	"Q8690":     true, // Cultural Revolution
-	"Q149086":   true, // Homicide
-}
+var badCards = map[string]bool{}
 
 var centuryRE = regexp.MustCompile(`(?i)(?:th|st|nd)[ -]century`)
 

@@ -44,9 +44,6 @@ export default function Board(props: Props) {
 
   async function onDragStart() {
     setIsDragging(true);
-    if (typeof navigator.vibrate === "function") {
-      navigator.vibrate(20);
-    }
   }
 
   async function onDragEnd(result: DropResult) {
